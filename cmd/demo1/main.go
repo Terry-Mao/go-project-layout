@@ -12,6 +12,10 @@ import (
 func main() {
 	svr := http.NewServer()
 	app := kratos.New(kratos.Signal(
+		syscall.SIGINT,
+		syscall.SIGQUIT,
+		syscall.SIGTERM,
+	), kratos.SignalFn(
 		func(a *kratos.App, sig os.Signal) {
 			switch sig {
 			case syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM:
@@ -19,9 +23,6 @@ func main() {
 			default:
 			}
 		},
-		syscall.SIGINT,
-		syscall.SIGQUIT,
-		syscall.SIGTERM,
 	))
 	app.Append(kratos.Hook{
 		OnStart: func(ctx context.Context) error {

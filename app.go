@@ -38,12 +38,14 @@ func StopTimeout(d time.Duration) Option {
 	return func(o *options) { o.stopTimeout = d }
 }
 
-// Signal with os signals and handler.
-func Signal(fn func(*App, os.Signal), sig ...os.Signal) Option {
-	return func(o *options) {
-		o.signals = sig
-		o.signalFn = fn
-	}
+// Signal with os signals.
+func Signal(sig ...os.Signal) Option {
+	return func(o *options) { o.signals = sig }
+}
+
+// SignalFn with signals handler.
+func SignalFn(fn func(*App, os.Signal)) Option {
+	return func(o *options) { o.signalFn = fn }
 }
 
 // App is manage the application component life cycle.
