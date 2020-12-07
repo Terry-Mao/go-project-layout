@@ -35,5 +35,6 @@ func (s *Server) Start() error {
 
 // Shutdown shutdown the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
+	log.Printf("[HTTP] Shutdown on: %s\n", s.srv.Addr)
 	return s.srv.Shutdown(ctx)
 }

@@ -56,11 +56,11 @@ func (a *App) Append(hook Hook) {
 	a.hooks = append(a.hooks, hook)
 }
 
-// Start executes all OnStart hooks registered with the application's Lifecycle.
-func (a *App) Start() error {
+// Run executes all OnStart hooks registered with the application's Lifecycle.
+func (a *App) Run() error {
 	var ctx context.Context
 	ctx, a.cancel = context.WithCancel(context.Background())
-	a.eg, ctx = errgroup.WithContext(ctx)
+	g, ctx := errgroup.WithContext(ctx)
 	for _, hook := range a.hooks {
 		hook := hook
 		if hook.OnStop != nil {
@@ -72,18 +72,17 @@ func (a *App) Start() error {
 			})
 		}
 		if hook.OnStart != nil {
-			a.eg.Go(func() error {
+			g.Go(func() error {
 				startCtx, cancel := context.WithTimeout(context.Background(), a.opts.startTimeout)
 				defer cancel()
 				return hook.OnStart(startCtx)
 			})
 		}
 	}
-	return nil
+	return g.Wait()
 }
 
 // Stop gracefully stops the application.
-func (a *App) Stop() error {
+func (a *App) Stop() {
 	a.cancel()
-	return a.eg.Wait()
 }
