@@ -3,6 +3,7 @@ package kratos
 import (
 	"context"
 	"os"
+	"os/signal"
 	"syscall"
 	"time"
 
@@ -22,7 +23,27 @@ type Option func(o *options)
 type options struct {
 	startTimeout time.Duration
 	stopTimeout  time.Duration
-	signals      []os.Signal
+
+	signals  []os.Signal
+	signalFn func(*App, os.Signal)
+}
+
+// StartTimeout with the start timeout.
+func StartTimeout(d time.Duration) Option {
+	return func(o *options) { o.startTimeout = d }
+}
+
+// StopTimeout with the start timeout.
+func StopTimeout(d time.Duration) Option {
+	return func(o *options) { o.stopTimeout = d }
+}
+
+// Signal with os signals and handler.
+func Signal(fn func(*App, os.Signal), sig ...os.Signal) Option {
+	return func(o *options) {
+		o.signals = sig
+		o.signalFn = fn
+	}
 }
 
 // App is manage the application component life cycle.
@@ -30,7 +51,6 @@ type App struct {
 	opts  options
 	hooks []Hook
 
-	eg     *errgroup.Group
 	cancel func()
 }
 
@@ -43,6 +63,13 @@ func New(opts ...Option) *App {
 			syscall.SIGTERM,
 			syscall.SIGQUIT,
 			syscall.SIGINT,
+		},
+		signalFn: func(a *App, sig os.Signal) {
+			switch sig {
+			case syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM:
+				a.Stop()
+			default:
+			}
 		},
 	}
 	for _, o := range opts {
@@ -64,9 +91,9 @@ func (a *App) Run() error {
 	for _, hook := range a.hooks {
 		hook := hook
 		if hook.OnStop != nil {
-			a.eg.Go(func() error {
+			g.Go(func() error {
 				<-ctx.Done() // wait for stop signal
-				stopCtx, cancel := context.WithTimeout(context.Background(), a.opts.startTimeout)
+				stopCtx, cancel := context.WithTimeout(context.Background(), a.opts.stopTimeout)
 				defer cancel()
 				return hook.OnStop(stopCtx)
 			})
@@ -79,6 +106,23 @@ func (a *App) Run() error {
 			})
 		}
 	}
+	if len(a.opts.signals) == 0 {
+		return g.Wait()
+	}
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, a.opts.signals...)
+	g.Go(func() error {
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case sig := <-c:
+				if a.opts.signalFn != nil {
+					a.opts.signalFn(a, sig)
+				}
+			}
+		}
+	})
 	return g.Wait()
 }
 

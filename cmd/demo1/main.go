@@ -5,11 +5,24 @@ import (
 	kratos "go-project-layout"
 	"go-project-layout/server/http"
 	"log"
+	"os"
+	"syscall"
 )
 
 func main() {
-	app := kratos.New()
 	svr := http.NewServer()
+	app := kratos.New(kratos.Signal(
+		func(a *kratos.App, sig os.Signal) {
+			switch sig {
+			case syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM:
+				a.Stop()
+			default:
+			}
+		},
+		syscall.SIGINT,
+		syscall.SIGQUIT,
+		syscall.SIGTERM,
+	))
 	app.Append(kratos.Hook{
 		OnStart: func(ctx context.Context) error {
 			return svr.Start()
@@ -18,8 +31,6 @@ func main() {
 			return svr.Shutdown(ctx)
 		},
 	})
-
-	// handle signal
 
 	if err := app.Run(); err != nil {
 		log.Printf("app failed: %v\n", err)
