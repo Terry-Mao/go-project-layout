@@ -4,7 +4,7 @@ import (
 	"context"
 	kratos "go-project-layout"
 	"go-project-layout/server/http"
-	"time"
+	"log"
 )
 
 func main() {
@@ -19,9 +19,10 @@ func main() {
 		},
 	})
 
-	app.Start()
+	// handle signal
 
-	time.Sleep(5 * time.Second)
-	app.Stop()
-	time.Sleep(5 * time.Second)
+	if err := app.Run(); err != nil {
+		log.Printf("app failed: %v\n", err)
+		return
+	}
 }
