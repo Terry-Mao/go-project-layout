@@ -130,5 +130,7 @@ func (a *App) Run() error {
 
 // Stop gracefully stops the application.
 func (a *App) Stop() {
-	a.cancel()
+	if a.cancel != nil {
+		a.cancel()
+	}
 }
